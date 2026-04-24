@@ -1,0 +1,859 @@
+---
+title: "CTA Final Essay Code"
+author: "B299309"
+date: "24 April 2026"
+output:
+  html_document:
+    df_print: paged
+  word_document:
+    reference_docx: CTA_example.docx
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5
+)
+```
+
+# Prepare Session
+
+## Load packages
+```{r}
+# Load packages for data processing, text analysis, modelling, tables, and visualisation
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(lubridate)
+
+library(quanteda)
+library(quanteda.textmodels)
+library(quanteda.textplots)
+library(topicmodels)
+library(tidytext)
+
+library(knitr)
+library(kableExtra)
+library(forcats)
+library(scales)
+```
+
+## Read data
+```{r}
+# Read the UK parliamentary speech dataset
+data <- fread("uk_data.csv", encoding = "UTF-8")
+
+# Convert date variable to Date format
+data$date <- as.Date(data$date)
+
+# Check the size and variable names of the dataset
+dim(data)
+names(data)[1:20]
+```
+
+## Create time and stage variables
+```{r}
+# Create half-year time periods from 2001 to 2019
+data$time <- NA_character_
+
+data$time[data$date >= as.Date("2001-01-01") & data$date <= as.Date("2001-06-30")] <- "01/1"
+data$time[data$date >= as.Date("2001-07-01") & data$date <= as.Date("2001-12-31")] <- "01/2"
+data$time[data$date >= as.Date("2002-01-01") & data$date <= as.Date("2002-06-30")] <- "02/1"
+data$time[data$date >= as.Date("2002-07-01") & data$date <= as.Date("2002-12-31")] <- "02/2"
+data$time[data$date >= as.Date("2003-01-01") & data$date <= as.Date("2003-06-30")] <- "03/1"
+data$time[data$date >= as.Date("2003-07-01") & data$date <= as.Date("2003-12-31")] <- "03/2"
+data$time[data$date >= as.Date("2004-01-01") & data$date <= as.Date("2004-06-30")] <- "04/1"
+data$time[data$date >= as.Date("2004-07-01") & data$date <= as.Date("2004-12-31")] <- "04/2"
+data$time[data$date >= as.Date("2005-01-01") & data$date <= as.Date("2005-06-30")] <- "05/1"
+data$time[data$date >= as.Date("2005-07-01") & data$date <= as.Date("2005-12-31")] <- "05/2"
+data$time[data$date >= as.Date("2006-01-01") & data$date <= as.Date("2006-06-30")] <- "06/1"
+data$time[data$date >= as.Date("2006-07-01") & data$date <= as.Date("2006-12-31")] <- "06/2"
+data$time[data$date >= as.Date("2007-01-01") & data$date <= as.Date("2007-06-30")] <- "07/1"
+data$time[data$date >= as.Date("2007-07-01") & data$date <= as.Date("2007-12-31")] <- "07/2"
+data$time[data$date >= as.Date("2008-01-01") & data$date <= as.Date("2008-06-30")] <- "08/1"
+data$time[data$date >= as.Date("2008-07-01") & data$date <= as.Date("2008-12-31")] <- "08/2"
+data$time[data$date >= as.Date("2009-01-01") & data$date <= as.Date("2009-06-30")] <- "09/1"
+data$time[data$date >= as.Date("2009-07-01") & data$date <= as.Date("2009-12-31")] <- "09/2"
+data$time[data$date >= as.Date("2010-01-01") & data$date <= as.Date("2010-06-30")] <- "10/1"
+data$time[data$date >= as.Date("2010-07-01") & data$date <= as.Date("2010-12-31")] <- "10/2"
+data$time[data$date >= as.Date("2011-01-01") & data$date <= as.Date("2011-06-30")] <- "11/1"
+data$time[data$date >= as.Date("2011-07-01") & data$date <= as.Date("2011-12-31")] <- "11/2"
+data$time[data$date >= as.Date("2012-01-01") & data$date <= as.Date("2012-06-30")] <- "12/1"
+data$time[data$date >= as.Date("2012-07-01") & data$date <= as.Date("2012-12-31")] <- "12/2"
+data$time[data$date >= as.Date("2013-01-01") & data$date <= as.Date("2013-06-30")] <- "13/1"
+data$time[data$date >= as.Date("2013-07-01") & data$date <= as.Date("2013-12-31")] <- "13/2"
+data$time[data$date >= as.Date("2014-01-01") & data$date <= as.Date("2014-06-30")] <- "14/1"
+data$time[data$date >= as.Date("2014-07-01") & data$date <= as.Date("2014-12-31")] <- "14/2"
+data$time[data$date >= as.Date("2015-01-01") & data$date <= as.Date("2015-06-30")] <- "15/1"
+data$time[data$date >= as.Date("2015-07-01") & data$date <= as.Date("2015-12-31")] <- "15/2"
+data$time[data$date >= as.Date("2016-01-01") & data$date <= as.Date("2016-06-30")] <- "16/1"
+data$time[data$date >= as.Date("2016-07-01") & data$date <= as.Date("2016-12-31")] <- "16/2"
+data$time[data$date >= as.Date("2017-01-01") & data$date <= as.Date("2017-06-30")] <- "17/1"
+data$time[data$date >= as.Date("2017-07-01") & data$date <= as.Date("2017-12-31")] <- "17/2"
+data$time[data$date >= as.Date("2018-01-01") & data$date <= as.Date("2018-06-30")] <- "18/1"
+data$time[data$date >= as.Date("2018-07-01") & data$date <= as.Date("2018-12-31")] <- "18/2"
+data$time[data$date >= as.Date("2019-01-01") & data$date <= as.Date("2019-06-30")] <- "19/1"
+data$time[data$date >= as.Date("2019-07-01") & data$date <= as.Date("2019-12-31")] <- "19/2"
+
+# Create an alternative time variable without slash
+data$time2 <- str_replace(data$time, "/", "_")
+
+# Create parliamentary stage variable
+data$stage <- 0
+data$stage[data$m_questions == 1] <- 1
+data$stage[data$u_questions == 1] <- 2
+data$stage[data$queen_debate_others == 1] <- 3
+data$stage[data$queen_debate_day1 == 1] <- 4
+data$stage[data$pm_questions == 1] <- 5
+
+# Convert stage into labelled factor
+data$stage <- factor(
+  data$stage,
+  levels = c(0, 1, 2, 3, 4, 5),
+  labels = c("Other", "Ministerial Questions", "Urgent Questions",
+             "Queen Debate Other", "Queen Debate Day 1", "PM Questions")
+)
+
+# Check missing time values and stage distribution
+sum(is.na(data$time))
+table(data$stage, useNA = "ifany")
+```
+
+## Subset Labour PMQs
+```{r}
+# Select Labour speeches in Prime Minister's Questions
+pmq_labour <- data %>%
+  filter(pm_questions == 1, party == "Labour")
+
+# Check sample size and government status distribution
+nrow(pmq_labour)
+table(pmq_labour$government, useNA = "ifany")
+
+# Keep variables needed for the analysis
+pmq_labour <- pmq_labour %>%
+  select(id_speech, date, time, time2, party, government, text)
+
+head(pmq_labour)
+```
+
+## Check government and opposition periods
+```{r}
+# Check whether Labour speeches are divided into government and opposition periods
+pmq_labour %>%
+  mutate(year = as.numeric(format(date, "%Y"))) %>%
+  group_by(year) %>%
+  summarise(
+    gov_share = mean(government),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  kable(
+    digits = 3,
+    caption = "Share of Labour PMQ speeches in government by year"
+  ) %>%
+  kable_styling(full_width = FALSE)
+```
+
+## Plot government status over time
+```{r plot-government-status, fig.width=8, fig.height=4.8, dpi=300, fig.cap="Figure A1. Share of Labour speeches in government by year"}
+# Visualise the government status of Labour speeches over time
+pmq_labour %>%
+  mutate(year = year(date)) %>%
+  group_by(year) %>%
+  summarise(gov_share = mean(government), .groups = "drop") %>%
+  ggplot(aes(x = year, y = gov_share)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Share of Labour speeches in government by year",
+    y = "Government proportion",
+    x = "Year"
+  ) +
+  theme_minimal()
+```
+
+The figure shows that from 2001 to 2019 Labour was in government continuously until around 2010, after which it moved into opposition and remained there for the rest of the period.
+
+# Topic Modelling (LDA)
+
+## Aggregate texts by half-year period
+```{r}
+# Aggregate Labour PMQ speeches into half-year time periods
+pmq_labour_time <- pmq_labour %>%
+  group_by(time) %>%
+  summarise(
+    text = paste(text, collapse = " "),
+    mean_date = mean(date),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    period = ifelse(mean_date < as.Date("2010-05-01"),
+                    "Government", "Opposition")
+  )
+```
+
+## Create corpus for LDA
+```{r}
+# Create a corpus from time-aggregated Labour PMQ texts
+corp_time <- corpus(pmq_labour_time, text_field = "text")
+
+# Tokenise texts and remove punctuation, symbols, numbers, and URLs
+toks_time <- tokens(
+  corp_time,
+  remove_punct = TRUE,
+  remove_symbols = TRUE,
+  remove_numbers = TRUE,
+  remove_url = TRUE
+) %>%
+  tokens_tolower()
+
+# Define custom stopwords for parliamentary and generic terms
+custom_stopwords <- c(
+  stopwords("en"),
+
+  # parliamentary procedural words
+  "hon", "member", "members", "minister", "ministers", "secretary",
+  "gentleman", "gentlelady", "lady", "house", "prime", "government",
+  "mr", "mrs", "speaker", "right", "friend", "friends",
+  "colleagues", "official", "engagements", "meeting", "meetings",
+
+  # generic discourse fillers
+  "will", "can", "could", "would", "may", "also", "just",
+  "now", "make", "made", "say", "says", "said", "going",
+  "go", "get", "got", "let", "today", "year", "years",
+  "time", "people", "one", "know", "think", "take", "many",
+  "want", "way", "week", "last", "first", "new", "well",
+
+  # common PMQ routine words
+  "morning", "afternoon", "evening", "wednesday", "thursday", "monday",
+  "duty", "duties", "shall", "later", "question", "answer",
+
+  # additional vague high-frequency words
+  "important", "sure", "agree", "however", "point", "clear",
+  "next", "done", "action", "report", "case", "matter",
+  "whether", "forward", "believe", "hope", "understand",
+  "aware", "yesterday", "others", "part", "whole"
+)
+
+# Remove stopwords
+toks_time <- tokens_remove(toks_time, pattern = custom_stopwords)
+
+# Keep tokens with at least three characters
+toks_time <- tokens_keep(toks_time, min_nchar = 3)
+
+# Add unigrams and bigrams
+toks_time <- tokens_ngrams(toks_time, n = 1:2)
+
+# Create document-feature matrix
+dfm_time <- dfm(toks_time)
+
+# Inspect most frequent features before further cleaning
+topfeatures(dfm_time, 50)
+```
+
+## Additional corpus cleaning for LDA
+```{r}
+# Remove additional high-frequency words with limited semantic meaning
+extra_stopwords_clean <- c(
+  "need", "help", "give", "put", "look", "must", "see",
+  "every", "back", "two", "tell", "course", "given"
+)
+
+toks_time <- tokens_remove(toks_time, pattern = extra_stopwords_clean)
+
+# Recreate dfm after additional cleaning
+dfm_time <- dfm(toks_time)
+
+# Inspect frequent terms again
+topfeatures(dfm_time, 50)
+```
+
+## Initial LDA model comparison
+```{r}
+# Trim the dfm before topic modelling
+dfm_time_trim <- dfm_trim(
+  dfm_time,
+  min_docfreq = 0.05,
+  max_docfreq = 0.85,
+  docfreq_type = "prop"
+)
+
+# Convert quanteda dfm into topicmodels format
+dtm_time <- convert(dfm_time_trim, to = "topicmodels")
+
+# Estimate 3-, 4-, and 5-topic models for comparison
+set.seed(1234)
+
+lda_time_3 <- LDA(dtm_time, k = 3, method = "VEM")
+lda_time_4 <- LDA(dtm_time, k = 4, method = "VEM")
+lda_time_5 <- LDA(dtm_time, k = 5, method = "VEM")
+
+# Inspect top terms from each model
+terms(lda_time_3, 15)
+terms(lda_time_4, 15)
+terms(lda_time_5, 15)
+```
+
+## Final LDA cleaning and model estimation
+```{r}
+# Remove a second set of additional terms after inspecting initial model results
+extra_stopwords_2 <- c(
+  "cent", "per_cent", "deputy",
+  "addition", "additional", "amount",
+  "entirely", "precisely", "although",
+  "promised", "promises", "broken",
+  "opposed", "grateful", "wrote",
+  "touch", "rule", "good", "number",
+  "since", "past", "result", "future",
+  "behaviour"
+)
+
+toks_time <- tokens_remove(toks_time, pattern = extra_stopwords_2)
+
+# Recreate and trim dfm for the final LDA models
+dfm_time <- dfm(toks_time)
+
+dfm_time_trim <- dfm_trim(
+  dfm_time,
+  min_docfreq = 0.05,
+  max_docfreq = 0.85,
+  docfreq_type = "prop"
+)
+
+# Convert to topicmodels format
+dtm_time <- convert(dfm_time_trim, to = "topicmodels")
+
+# Estimate final 3-, 4-, and 5-topic models
+set.seed(1234)
+
+lda_time_3 <- LDA(dtm_time, k = 3, method = "VEM", control = list(seed = 1234))
+lda_time_4 <- LDA(dtm_time, k = 4, method = "VEM", control = list(seed = 1234))
+lda_time_5 <- LDA(dtm_time, k = 5, method = "VEM", control = list(seed = 1234))
+
+# Inspect topic terms
+terms(lda_time_3, 15)
+terms(lda_time_4, 15)
+terms(lda_time_5, 15)
+```
+
+The k=3 model produced three clearly interpretable and distinct topics, corresponding to (1) welfare and domestic policy, (2) economic conditions and global issues, and (3) war and security. The keywords within each topic showed strong internal consistency and meaningful substantive interpretation.
+
+In contrast, the k=4 and k=5 models resulted in more fragmented topic structures. Several topics overlapped in content (e.g., multiple topics containing war-related terms such as “iraq,” “afghanistan,” and “troops”), and some topics lacked clear thematic coherence. This made interpretation less straightforward.
+
+Based on this comparison, the k=3 model was selected for subsequent analysis.
+
+## Extract LDA(k=3) beta values
+```{r}
+# Extract beta values from the final 3-topic LDA model
+beta_time_3 <- tidy(lda_time_3, matrix = "beta")
+
+# Keep the top 15 terms for each topic
+beta_top15 <- beta_time_3 %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>%
+  ungroup()
+```
+
+## Table of topic keywords
+```{r}
+# Display top 15 terms for each topic
+beta_top15 %>%
+  arrange(topic, desc(beta)) %>%
+  kable(
+    digits = 4,
+    caption = "Top 15 terms for each topic in the LDA model"
+  ) %>%
+  kable_styling(full_width = FALSE)
+```
+
+## Plot LDA topic keywords
+```{r plot-lda-topic-keywords, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 1. Top 15 terms for each LDA topic (k=3)"}
+# Visualise the highest-beta terms in each topic
+
+topic_labels <- c(
+  "1" = "1. Welfare and domestic policy",
+  "2" = "2. Economic conditions and global issues",
+  "3" = "3. War and security"
+)
+
+beta_top15 %>%
+  mutate(
+    topic = factor(topic),
+    topic_label = recode(as.character(topic), !!!topic_labels),
+    term = reorder_within(term, beta, topic_label)
+  ) %>%
+  ggplot(aes(x = beta, y = term, fill = topic)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic_label, scales = "free", ncol = 3) +
+  scale_y_reordered() +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Top 15 terms by topic (LDA, k = 3)",
+    x = "Beta (term probability)",
+    y = NULL
+  ) +
+  theme(
+    strip.text = element_text(size = 8, face = "bold"),
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(size = 8),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    panel.spacing = unit(1.2, "lines")
+  )
+```
+
+The figure shows three main topics in Labour’s discourse: welfare and domestic policy (e.g. brexit, unemployment, social care), economic and global issues (e.g. afghanistan, banks, recession), and war and security (e.g. iraq, terrorism, troops).
+
+## Extract topic distribution values
+```{r}
+# Extract topic probabilities from the final 3-topic LDA model
+gamma_time <- posterior(lda_time_3)$topics
+
+# Convert gamma matrix into a data frame
+topic_gamma_df <- as.data.frame(gamma_time)
+colnames(topic_gamma_df) <- paste0("Topic_", 1:3)
+
+# Combine gamma values with the time-aggregated Labour PMQ data
+topic_gamma_df <- cbind(pmq_labour_time, topic_gamma_df)
+```
+
+## Convert gamma values into long format
+```{r}
+# Convert topic probabilities into long format
+topic_gamma_long <- topic_gamma_df %>%
+  pivot_longer(
+    cols = starts_with("Topic_"),
+    names_to = "topic",
+    values_to = "gamma"
+  ) %>%
+  mutate(
+    topic_label = recode(
+      topic,
+      "Topic_1" = "Welfare and domestic policy",
+      "Topic_2" = "Economic conditions and global issues",
+      "Topic_3" = "War and security"
+    )
+  )
+```
+
+## Table of topic prevalence over time
+```{r}
+# Create a wide table of gamma values by time period
+topic_gamma_wide <- topic_gamma_long %>%
+  ungroup() %>%
+  select(time, topic_label, gamma) %>%
+  pivot_wider(names_from = topic_label, values_from = gamma)
+
+# Keep periods in chronological order
+topic_gamma_wide <- topic_gamma_wide %>%
+  mutate(time = factor(time, levels = unique(pmq_labour_time$time))) %>%
+  arrange(time)
+
+# Display gamma values
+topic_gamma_wide %>%
+  kable(
+    digits = 3,
+    caption = "Topic prevalence over time (gamma values)"
+  ) %>%
+  kable_styling(full_width = FALSE)
+```
+
+## Plot topic prevalence over time
+```{r plot-topic-prevalence, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 2. Topic prevalence over time in Labour PMQs (LDA, k = 3)"}
+# Plot topic probabilities across half-year periods
+ggplot(topic_gamma_long, aes(x = time, y = gamma, group = topic_label, color = topic_label)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = which(unique(pmq_labour_time$time) == "10/1"),
+             linetype = "dashed") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Topic prevalence over time in Labour PMQs (LDA, k = 3)",
+    x = "Time",
+    y = "Topic probability",
+    color = "Topic"
+  ) +
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),   # 标题更大
+    axis.title.x = element_text(size = 14),  # X轴标题
+    axis.title.y = element_text(size = 14),  # Y轴标题
+    axis.text.x = element_text(size = 11, angle = 45, hjust = 1),  # X轴刻度
+    axis.text.y = element_text(size = 11),  # Y轴刻度
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+```
+
+The figure shows a clear shift in dominant topics over time: discourse is initially dominated by war and security, then shifts to economic issues, and after 2010 becomes dominated by welfare and domestic policy.
+
+## LDA robustness check with different random seeds
+```{r}
+# Re-estimate the 3-topic LDA model using different random seeds
+set.seed(1234)
+lda_3_a <- LDA(dtm_time, k = 3, method = "VEM")
+
+set.seed(5678)
+lda_3_b <- LDA(dtm_time, k = 3, method = "VEM")
+
+set.seed(9999)
+lda_3_c <- LDA(dtm_time, k = 3, method = "VEM")
+
+# Compare top terms across different model runs
+terms(lda_3_a, 15)
+terms(lda_3_b, 15)
+terms(lda_3_c, 15)
+```
+
+## External topic validation using top_topic
+```{r}
+# Create a fuller Labour PMQ dataset including the supervised top_topic variable
+pmq_labour_full <- data %>%
+  filter(pm_questions == 1, party == "Labour") %>%
+  select(id_speech, date, time, time2, party, government, text, top_topic)
+
+# Display the distribution of top_topic categories
+pmq_labour_full %>%
+  count(top_topic, sort = TRUE) %>%
+  kable(caption = "Distribution of top_topic in Labour PMQs") %>%
+  kable_styling(full_width = FALSE)
+```
+
+# Discourse Position (Wordfish)
+
+## Create Wordfish corpus
+```{r}
+# Create a corpus for Wordfish using speech-level Labour PMQ texts
+corp_wf <- corpus(pmq_labour, text_field = "text")
+
+# Add time as a document-level variable
+docvars(corp_wf, "time") <- pmq_labour$time
+
+# Tokenise texts for Wordfish
+toks_wf <- tokens(
+  corp_wf,
+  remove_punct = TRUE,
+  remove_symbols = TRUE,
+  remove_numbers = TRUE,
+  remove_url = TRUE
+) %>%
+  tokens_tolower()
+
+# Define stopwords for Wordfish
+wf_stopwords <- c(
+  stopwords("en"),
+  "hon", "member", "members", "minister", "ministers", "secretary",
+  "gentleman", "gentlelady", "lady", "house", "prime", "government",
+  "mr", "mrs", "speaker", "right", "friend", "friends"
+)
+
+# Remove stopwords
+toks_wf <- tokens_remove(toks_wf, pattern = wf_stopwords)
+
+# Create dfm
+dfm_wf_raw <- dfm(toks_wf)
+
+# Group dfm by half-year period
+dfm_wf_time <- dfm_group(dfm_wf_raw, groups = time)
+
+# Trim low-frequency features
+dfm_wf_time <- dfm_trim(
+  dfm_wf_time,
+  min_docfreq = 2,
+  docfreq_type = "count"
+)
+
+# Check dimensions
+dim(dfm_wf_time)
+```
+
+## Estimate Wordfish model
+```{r}
+# Estimate Wordfish model
+set.seed(123L)
+
+wf_time <- textmodel_wordfish(dfm_wf_time)
+```
+
+## Plot document positions on the Wordfish scale
+```{r plot-wordfish-scale, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure A2. Document positions on the Wordfish scale"}
+textplot_scale1d(wf_time)
+```
+
+The figure shows that Labour’s discourse positions are spread across the scale. Some periods are clustered on the right, while others appear on the left, suggesting substantial variation in how discourse is structured.
+
+## Extract Wordfish feature scores
+```{r}
+# Extract Wordfish feature beta values
+
+features <- wf_time[["features"]]
+betas <- wf_time[["beta"]]
+
+feat_betas <- data.frame(
+  feature = features,
+  beta = as.numeric(betas)
+)
+
+head(feat_betas, 10)
+```
+
+
+## Positive Wordfish features
+```{r}
+# Display features at the positive end of the Wordfish dimension
+feat_betas %>%
+  arrange(desc(beta)) %>%
+  slice_head(n = 20) %>%
+  kable(digits = 3, caption = "Top positive Wordfish features") %>%
+  kable_styling(full_width = FALSE)
+```
+
+## Negative Wordfish features
+```{r}
+# Display features at the negative end of the Wordfish dimension
+feat_betas %>%
+  arrange(beta) %>%
+  slice_head(n = 20) %>%
+  kable(digits = 3, caption = "Top negative Wordfish features") %>%
+  kable_styling(full_width = FALSE)
+```
+
+## Plot positive and negative features
+```{r plot-wordfish-features, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 3. Most distinctive Wordfish features at both ends of the scale"}
+
+# Prepare positive and negative Wordfish features
+top_pos <- feat_betas %>%
+  arrange(desc(beta)) %>%
+  slice_head(n = 20) %>%
+  mutate(direction = "Positive")
+
+top_neg <- feat_betas %>%
+  arrange(beta) %>%
+  slice_head(n = 20) %>%
+  mutate(direction = "Negative")
+
+plot_data <- bind_rows(top_pos, top_neg)
+
+# Flip negative side for mirror effect
+plot_data <- plot_data %>%
+  mutate(beta_plot = ifelse(direction == "Negative", -abs(beta), abs(beta)))
+
+# Plot distinctive Wordfish features
+ggplot(plot_data, aes(x = beta_plot, y = reorder(feature, beta_plot), fill = direction)) +
+  geom_col(show.legend = TRUE) +
+  theme_minimal() +
+  labs(
+    title = "Most distinctive Wordfish features",
+    x = "Beta (direction of discourse)",
+    y = NULL,
+    fill = NULL
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.y = element_text(size = 10)
+  )
+```
+
+The figure shows a clear contrast between two sides of the Wordfish dimension: one side is characterised by international security terms (e.g. iraq, saddam, disarm), while the other is dominated by domestic political issues (e.g. brexit, austerity, grenfell).
+
+## Extract Wordfish positions over time
+```{r}
+# Extract estimated Wordfish positions
+positions <- data.frame(
+  time = rownames(dfm_wf_time),
+  theta = wf_time$theta
+)
+
+# Add government/opposition period labels
+pmq_labour_time$period <- ifelse(
+  pmq_labour_time$mean_date < as.Date("2010-05-01"),
+  "Government",
+  "Opposition"
+)
+
+positions <- merge(positions, pmq_labour_time[, c("time", "period")])
+
+# Keep time in correct chronological order
+positions$time <- factor(positions$time, levels = unique(pmq_labour_time$time))
+
+positions <- positions %>%
+  arrange(time)
+```
+
+## Plot Wordfish estimated positions over time
+```{r plot-wordfish-position, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 4. Discourse position over time based on the Wordfish model"}
+ggplot(positions, aes(x = time, y = theta, color = period, group = 1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = which(levels(positions$time) == "10/1"),
+             linetype = "dashed") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Discourse position over time (Wordfish)",
+    x = "Time",
+    y = "Estimated position",
+    color = "Period"
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 11),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+```
+
+The figure shows a clear shift in discourse position over time, with a sharp change around 2010 from a higher (positive) position during government to a lower (negative) position during opposition.
+
+# Sentiment Analysis (AFINN and Bing)
+
+## Prepare tokens for sentiment analysis
+```{r}
+# Convert time-aggregated texts into tidy token format
+tidy_tokens <- pmq_labour_time %>%
+  unnest_tokens(word, text)
+```
+
+## Sentiment analysis using AFINN lexicon
+```{r}
+# Load AFINN sentiment lexicon
+afinn <- get_sentiments("afinn")
+
+# Match tokens with AFINN lexicon
+sentiment_afinn_df <- tidy_tokens %>%
+  inner_join(afinn, by = "word")
+
+# Calculate average AFINN sentiment score by time period
+sent_afinn_time <- sentiment_afinn_df %>%
+  group_by(time) %>%
+  summarise(
+    score = mean(value),
+    .groups = "drop"
+  ) %>%
+  mutate(lexicon = "AFINN")
+```
+
+## Plot AFINN sentiment over time
+```{r plot-sentiment-afinn, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 5. Sentiment over time based on the AFINN lexicon"}
+ggplot(sent_afinn_time, aes(x = time, y = score, group = 1)) +
+  geom_line(linewidth = 1, color = "#F8766D") +
+  geom_point(size = 2, color = "#F8766D") +
+  geom_vline(xintercept = which(sent_afinn_time$time == "10/1"),
+             linetype = "dashed") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Sentiment over time using AFINN lexicon",
+    x = "Time",
+    y = "Average sentiment score"
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 11)
+  )
+```
+
+The figure shows a clear decline in sentiment over time, with a sharp drop around 2010 from positive to more negative values.
+
+## Sentiment analysis using Bing lexicon
+```{r}
+# Load Bing sentiment lexicon
+bing <- get_sentiments("bing")
+
+# Match tokens with Bing lexicon
+sentiment_bing_df <- tidy_tokens %>%
+  inner_join(bing, by = "word")
+
+# Calculate sentiment score by time period
+sent_bing_time <- sentiment_bing_df %>%
+  count(time, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(
+    score = (positive - negative) / (positive + negative + 1),
+    lexicon = "Bing"
+  )
+```
+
+## Plot Bing sentiment over time
+```{r plot-sentiment-bing, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure A3. Sentiment over time based on the Bing lexicon"}
+ggplot(sent_bing_time, aes(x = time, y = score, group = 1)) +
+  geom_line(linewidth = 1, color = "#00BFC4") +
+  geom_point(size = 2, color = "#00BFC4") +
+  geom_vline(xintercept = which(levels(factor(sent_bing_time$time)) == "10/1"),
+             linetype = "dashed") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Sentiment over time using Bing lexicon",
+    x = "Time",
+    y = "Sentiment score"
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 11)
+  )
+```
+
+The figure shows a general decline in sentiment over time, with a noticeable drop around 2010 and mostly lower or negative values afterward.
+
+## Sentiment robustness check
+```{r}
+# Combine AFINN and Bing results for robustness comparison
+sent_robustness <- bind_rows(
+  sent_afinn_time,
+  sent_bing_time %>% select(time, score, lexicon)
+)
+
+# Keep time periods in chronological order
+sent_robustness <- sent_robustness %>%
+  mutate(time = factor(time, levels = unique(pmq_labour_time$time)))
+```
+
+## Plot sentiment robustness check
+```{r plot-sentiment-robustness, fig.width=12, fig.height=6.8, dpi=500, fig.cap="Figure 6. Sentiment robustness check comparing AFINN and Bing lexicons"}
+ggplot(sent_robustness, aes(x = time, y = score, color = lexicon, group = lexicon)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.8) +
+  geom_vline(xintercept = which(levels(sent_robustness$time) == "10/1"),
+             linetype = "dashed") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Sentiment robustness check: AFINN and Bing",
+    x = "Time",
+    y = "Sentiment score",
+    color = "Lexicon"
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 11),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    legend.position = "right"
+  )
+```
+
+The figure shows that both AFINN and Bing follow a very similar trend over time, with sentiment declining around 2010 and remaining lower afterward.
+
+
+
+
+
+
+
+
